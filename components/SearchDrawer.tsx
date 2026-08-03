@@ -2,9 +2,10 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, X, Play, Plus, Heart, Loader2, Music, CheckCircle2 } from 'lucide-react';
+import { Search, X, Play, Plus, Heart, Loader2, Music, CheckCircle2, ListPlus } from 'lucide-react';
 import { usePlayerStore } from '@/store/playerStore';
 import { YouTubeSearchResult, Song } from '@/lib/types';
+import AddToPlaylistModal from './AddToPlaylistModal';
 
 export function SearchDrawer() {
   const {
@@ -124,6 +125,13 @@ export function SearchDrawer() {
 
   const isFavorited = (ytId: string) => {
     return favorites.some((f) => f.youtube_id === ytId || f.id === `yt-${ytId}`);
+  };
+
+  const [addToPlaylistSong, setAddToPlaylistSong] = useState<Song | null>(null);
+
+  const handleAddToPlaylist = (item: YouTubeSearchResult) => {
+    const song = convertToSong(item);
+    setAddToPlaylistSong(song);
   };
 
   return (
@@ -331,6 +339,15 @@ export function SearchDrawer() {
                               className={favorited ? 'fill-pink-400 text-pink-400' : ''}
                             />
                           </button>
+
+                          {/* Add to Playlist Button */}
+                          <button
+                            onClick={() => handleAddToPlaylist(item)}
+                            className="p-2.5 rounded-xl border border-white/10 bg-white/10 hover:bg-purple-500/20 text-gray-300 hover:text-purple-300 transition-all active:scale-95"
+                            title="Listeye Ekle"
+                          >
+                            <ListPlus size={16} />
+                          </button>
                         </div>
                       </div>
                     );
@@ -363,6 +380,15 @@ export function SearchDrawer() {
           </>
         )}
       </AnimatePresence>
+
+      {/* Add to Playlist Modal */}
+      {addToPlaylistSong && (
+        <AddToPlaylistModal
+          isOpen={!!addToPlaylistSong}
+          onClose={() => setAddToPlaylistSong(null)}
+          song={addToPlaylistSong}
+        />
+      )}
     </>
   );
 }
