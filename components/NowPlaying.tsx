@@ -7,7 +7,7 @@ export default function NowPlaying() {
   const { currentSong, currentPlaylist } = usePlayerStore();
 
   return (
-    <div className="flex flex-col items-center justify-center text-center p-6 space-y-2 min-h-[160px]">
+    <div className="flex flex-col items-center justify-center text-center p-4 space-y-2 min-h-[120px]">
       <AnimatePresence mode="wait">
         {currentSong ? (
           <motion.div

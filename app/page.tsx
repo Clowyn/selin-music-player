@@ -5,10 +5,12 @@ import { BackgroundSlideshow } from '@/components/BackgroundSlideshow';
 import { FloatingSprites } from '@/components/FloatingSprites';
 import { BirthdayGreeting } from '@/components/BirthdayGreeting';
 import NowPlaying from '@/components/NowPlaying';
+import UpNextRow from '@/components/UpNextRow';
 import CustomSeekbar from '@/components/CustomSeekbar';
 import PlayerControls from '@/components/PlayerControls';
 import PlaylistDrawer from '@/components/PlaylistDrawer';
 import { SearchDrawer } from '@/components/SearchDrawer';
+import LyricsSheet from '@/components/LyricsSheet';
 
 export default function Home() {
   return (
@@ -34,26 +36,35 @@ export default function Home() {
         <div className="flex-1" />
 
         {/* Now Playing info */}
-        <div className="px-6 mb-6">
+        <div className="px-6 mb-2">
           <NowPlaying />
         </div>
 
+        {/* Up Next horizontal row */}
+        <div className="px-6 mb-3">
+          <UpNextRow />
+        </div>
+
         {/* Custom seekbar */}
-        <div className="px-6 mb-4">
+        <div className="px-6 mb-3">
           <CustomSeekbar />
         </div>
 
         {/* Player controls */}
-        <div className="px-6 mb-4">
+        <div className="px-6 mb-3">
           <PlayerControls />
         </div>
 
         {/* Drawer triggers area */}
-        <div className="px-6 mb-8 flex items-center justify-center gap-4">
+        <div className="px-6 mb-6 flex items-center justify-center gap-4">
           <PlaylistDrawer />
           <SearchDrawer />
         </div>
       </div>
+
+      {/* Slide-up Lyrics Sheet */}
+      <LyricsSheet />
     </main>
   );
 }
+

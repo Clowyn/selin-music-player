@@ -15,7 +15,8 @@ interface PlayerState {
   queue: Song[];
   favorites: Song[];
   searchDrawerOpen: boolean;
-  
+  isLyricsOpen: boolean;
+
   play: () => void;
   pause: () => void;
   togglePlay: () => void;
@@ -34,6 +35,8 @@ interface PlayerState {
   addToQueue: (song: Song) => void;
   removeFromQueue: (id: string) => void;
   setSearchDrawerOpen: (open: boolean) => void;
+  setLyricsOpen: (open: boolean) => void;
+  toggleLyricsOpen: () => void;
   toggleFavorite: (song: Song) => Promise<void>;
   fetchFavorites: () => Promise<void>;
 }
@@ -51,6 +54,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
   queue: [],
   favorites: [],
   searchDrawerOpen: false,
+  isLyricsOpen: false,
 
   play: () => set({ isPlaying: true }),
   pause: () => set({ isPlaying: false }),
@@ -156,7 +160,20 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
   
   removeFromQueue: (id: string) => set((state) => ({ queue: state.queue.filter((s) => s.id !== id) })),
   
-  setSearchDrawerOpen: (open: boolean) => set({ searchDrawerOpen: open }),
+  setSearchDrawerOpen: (open: boolean) => set((state) => ({
+    searchDrawerOpen: open,
+    isLyricsOpen: open ? false : state.isLyricsOpen,
+  })),
+
+  setLyricsOpen: (open: boolean) => set((state) => ({
+    isLyricsOpen: open,
+    searchDrawerOpen: open ? false : state.searchDrawerOpen,
+  })),
+
+  toggleLyricsOpen: () => set((state) => ({
+    isLyricsOpen: !state.isLyricsOpen,
+    searchDrawerOpen: !state.isLyricsOpen ? false : state.searchDrawerOpen,
+  })),
 
   toggleFavorite: async (song: Song) => {
     const { favorites } = get();
