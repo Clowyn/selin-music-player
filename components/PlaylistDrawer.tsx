@@ -2,10 +2,11 @@
 
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { List, X, Music, Heart, Play, Video } from 'lucide-react';
+import { List, X, Music, Heart, Play, Video, Download } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { usePlayerStore } from '@/store/playerStore';
 import { Playlist, Song } from '@/lib/types';
+import ImportPlaylistModal from './ImportPlaylistModal';
 
 type PlaylistWithCount = Playlist & { songs?: { count: number }[] };
 
@@ -14,6 +15,7 @@ export default function PlaylistDrawer() {
   const [activeTab, setActiveTab] = useState<'playlists' | 'favorites'>('playlists');
   const [playlists, setPlaylists] = useState<PlaylistWithCount[]>([]);
   const [loadingPlaylists, setLoadingPlaylists] = useState(false);
+  const [showImport, setShowImport] = useState(false);
   
   const {
     currentPlaylist,
@@ -193,6 +195,20 @@ export default function PlaylistDrawer() {
                           Henüz çalma listesi bulunmuyor.
                         </div>
                       )}
+
+                      {/* Import Playlist Button */}
+                      <button
+                        onClick={() => setShowImport(true)}
+                        className="w-full flex items-center gap-3 p-4 rounded-xl bg-white/5 hover:bg-white/10 border border-dashed border-white/20 hover:border-green-500/50 text-gray-300 hover:text-white transition-all active:scale-[0.98] mt-2"
+                      >
+                        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-green-500/20 to-purple-600/20 border border-green-500/30 flex items-center justify-center">
+                          <Download size={18} className="text-green-400" />
+                        </div>
+                        <div className="text-left">
+                          <span className="text-sm font-semibold block">Playlist İçe Aktar</span>
+                          <span className="text-[11px] text-gray-500">Spotify · YouTube Music</span>
+                        </div>
+                      </button>
                     </div>
                   )
                 ) : (
@@ -251,6 +267,24 @@ export default function PlaylistDrawer() {
           </>
         )}
       </AnimatePresence>
+
+      {/* Import Playlist Modal */}
+      <ImportPlaylistModal
+        isOpen={showImport}
+        onClose={() => {
+          setShowImport(false);
+          // Refresh playlists after import
+          if (isOpen && activeTab === 'playlists') {
+            supabase
+              .from('playlists')
+              .select('*, songs(count)')
+              .order('created_at', { ascending: false })
+              .then(({ data }) => {
+                if (data) setPlaylists(data as PlaylistWithCount[]);
+              });
+          }
+        }}
+      />
     </>
   );
 }

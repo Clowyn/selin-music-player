@@ -65,14 +65,28 @@ export default function AddToPlaylistModal({ isOpen, onClose, song }: AddToPlayl
 
     try {
       // Check if song already exists in this playlist
-      const { data: existing } = await supabase
-        .from('songs')
-        .select('id')
-        .eq('playlist_id', playlist.id)
-        .or(`title.eq.${song.title},youtube_id.eq.${song.youtube_id || ''}`)
-        .limit(1);
+      let alreadyExists = false;
 
-      if (existing && existing.length > 0) {
+      if (song.youtube_id) {
+        const { data: existing } = await supabase
+          .from('songs')
+          .select('id')
+          .eq('playlist_id', playlist.id)
+          .eq('youtube_id', song.youtube_id)
+          .limit(1);
+        alreadyExists = !!(existing && existing.length > 0);
+      } else {
+        const { data: existing } = await supabase
+          .from('songs')
+          .select('id')
+          .eq('playlist_id', playlist.id)
+          .eq('title', song.title)
+          .eq('artist', song.artist)
+          .limit(1);
+        alreadyExists = !!(existing && existing.length > 0);
+      }
+
+      if (alreadyExists) {
         setError('Bu şarkı zaten bu listede mevcut!');
         setTimeout(() => setError(null), 2500);
         return;
