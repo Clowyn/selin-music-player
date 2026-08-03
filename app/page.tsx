@@ -8,6 +8,7 @@ import NowPlaying from '@/components/NowPlaying';
 import CustomSeekbar from '@/components/CustomSeekbar';
 import PlayerControls from '@/components/PlayerControls';
 import PlaylistDrawer from '@/components/PlaylistDrawer';
+import { SearchDrawer } from '@/components/SearchDrawer';
 
 export default function Home() {
   return (
@@ -47,9 +48,10 @@ export default function Home() {
           <PlayerControls />
         </div>
 
-        {/* Playlist drawer trigger area */}
-        <div className="px-6 mb-8">
+        {/* Drawer triggers area */}
+        <div className="px-6 mb-8 flex items-center justify-center gap-4">
           <PlaylistDrawer />
+          <SearchDrawer />
         </div>
       </div>
     </main>

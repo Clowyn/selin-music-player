@@ -8,13 +8,15 @@ export interface Playlist {
 
 export interface Song {
   id: string;
-  playlist_id: string;
+  playlist_id?: string;
   title: string;
   artist: string;
   audio_url: string;
+  youtube_id?: string;
   duration: number;
-  track_order: number;
-  created_at: string;
+  track_order?: number;
+  created_at?: string;
+  cover_url?: string;
 }
 
 export interface BackgroundMedia {
@@ -31,6 +33,15 @@ export interface CharacterSprite {
   name: string;
   image_url: string;
   is_active: boolean;
+}
+
+export interface YouTubeSearchResult {
+  id: string;
+  title: string;
+  channelTitle: string;
+  thumbnail: string;
+  duration: string;
+  durationSeconds: number;
 }
 
 export type RepeatMode = 'off' | 'single' | 'all';
