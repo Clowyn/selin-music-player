@@ -176,16 +176,14 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
       set({ favorites: updated });
       try {
         await supabase.from('favorites').upsert({
-          id: song.id,
           song_id: song.id,
           title: song.title,
           artist: song.artist,
-          audio_url: song.audio_url || '',
+          audio_url: song.audio_url || (song.youtube_id ? `https://www.youtube.com/watch?v=${song.youtube_id}` : ''),
           youtube_id: song.youtube_id || null,
           duration: song.duration || 0,
           cover_url: song.cover_url || null,
-          playlist_id: song.playlist_id || null,
-        });
+        }, { onConflict: 'song_id' });
       } catch (err) {
         console.error('Supabase upsert favorite error:', err);
       }

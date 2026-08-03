@@ -100,25 +100,30 @@ export default function AddToPlaylistModal({ isOpen, onClose, song }: AddToPlayl
         .order('track_order', { ascending: false })
         .limit(1);
 
-      const nextOrder = (maxOrderData && maxOrderData.length > 0)
-        ? ((maxOrderData[0] as Record<string, unknown>).track_order as number) + 1
-        : 0;
+      const rawOrder = maxOrderData?.[0]
+        ? (maxOrderData[0] as Record<string, unknown>).track_order
+        : null;
+      const nextOrder = typeof rawOrder === 'number' ? rawOrder + 1 : 0;
+
+      // Build audio_url: use existing, or construct from youtube_id, or empty
+      const audioUrl = song.audio_url
+        || (song.youtube_id ? `https://www.youtube.com/watch?v=${song.youtube_id}` : '');
 
       // Insert the song into the playlist
       const { error: insertError } = await supabase.from('songs').insert({
         playlist_id: playlist.id,
-        title: song.title,
-        artist: song.artist,
-        audio_url: song.audio_url || '',
+        title: song.title || 'Bilinmeyen Şarkı',
+        artist: song.artist || 'Bilinmeyen Sanatçı',
+        audio_url: audioUrl,
         youtube_id: song.youtube_id || null,
         cover_url: song.cover_url || null,
-        duration: song.duration || 0,
+        duration: typeof song.duration === 'number' ? song.duration : 0,
         track_order: nextOrder,
       });
 
       if (insertError) {
-        setError('Eklenirken hata oluştu. Tekrar deneyin.');
         console.error('Insert error:', insertError);
+        setError(`Hata: ${insertError.message || 'Bilinmeyen hata'}`);
         return;
       }
 
@@ -154,14 +159,16 @@ export default function AddToPlaylistModal({ isOpen, onClose, song }: AddToPlayl
       const playlist = newPlaylist as Playlist;
 
       // Add the song to the new playlist
+      const newAudioUrl = song.audio_url
+        || (song.youtube_id ? `https://www.youtube.com/watch?v=${song.youtube_id}` : '');
       await supabase.from('songs').insert({
         playlist_id: playlist.id,
-        title: song.title,
-        artist: song.artist,
-        audio_url: song.audio_url || '',
+        title: song.title || 'Bilinmeyen Şarkı',
+        artist: song.artist || 'Bilinmeyen Sanatçı',
+        audio_url: newAudioUrl,
         youtube_id: song.youtube_id || null,
         cover_url: song.cover_url || null,
-        duration: song.duration || 0,
+        duration: typeof song.duration === 'number' ? song.duration : 0,
         track_order: 0,
       });
 
