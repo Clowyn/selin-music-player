@@ -63,3 +63,79 @@ All new code must integrate cleanly with the existing codebase. The project must
 ### Build
 - [ ] `npm run lint` exits with 0 errors (warnings are acceptable).
 - [ ] `npm run build` exits with code 0 and all routes compile.
+
+## Follow-up — 2026-08-06T23:56:49Z
+
+Fix UI spacing, redesign the recommendations section, improve lyrics coverage, and add a Now Playing Queue drawer with playlist editing to the Selin Music Player PWA. The app streams music from YouTube via iFrame API, uses a dark glassmorphic pink/purple design with Tailwind CSS and Framer Motion.
+
+Working directory: d:\Projeler\Selin\selin-player
+Integrity mode: development
+
+**Existing tech stack:** Next.js 16 (App Router), TypeScript, Tailwind CSS, Framer Motion, Zustand (store at `store/playerStore.ts`), Supabase (DB + storage), Lucide React icons.
+
+**Key files to modify (extend, do NOT rewrite from scratch):**
+- `components/PlayerControls.tsx` — Horizontal control bar (needs wider padding)
+- `components/UpNextRow.tsx` — Currently shows large recommendation cards taking 40% of the screen
+- `app/api/lyrics/route.ts` — Currently uses LRCLIB + lyrics.ovh (needs Genius fallback)
+- `components/LyricsSheet.tsx` — Karaoke-style lyrics viewer
+- `store/playerStore.ts` — Zustand store with `currentSong`, `songs`, `queue`, etc.
+- `components/PlaylistDrawer.tsx` — Bottom drawer with Çalma Listeleri, Favorilerim, Keşfet tabs
+- `app/page.tsx` — Main page composing all components
+- `lib/types.ts` — Song, Playlist interfaces
+
+**Design language:** Dark glassmorphism (bg-gray-900/90 backdrop-blur-xl, border-white/10, pink-500/purple-600 accents). Turkish UI labels. Framer Motion animations.
+
+## Requirements
+
+### R1. Wider Control Bar
+Increase the vertical padding of the PlayerControls bar in `components/PlayerControls.tsx` by approximately 5 pixels (e.g., change `p-3` to `p-4` or add `py-4`). The control bar should feel slightly more spacious and easier to tap on mobile.
+
+### R2. Compact Recommendations Strip
+Redesign `components/UpNextRow.tsx` from large horizontal-scroll cards to a compact single-line strip/pill that takes minimal vertical space. It should show the recommended song title with basic action buttons (play, add to queue) in a thin horizontal bar. The entire Up Next section should take no more than ~50px of vertical space on mobile instead of the current ~200px.
+
+### R3. Improved Lyrics Coverage with Genius Fallback
+Add Genius lyrics as a 3rd fallback source in `app/api/lyrics/route.ts` between LRCLIB and lyrics.ovh. The Genius API should be used to search for lyrics by title+artist and scrape the lyrics page content. Also improve the title/artist cleaning logic to better handle YouTube video titles with extra metadata (e.g., "(Official Video)", "HD", "VEVO", etc.). The goal is significantly better lyrics coverage for Turkish and international songs.
+
+### R4. Now Playing Queue Drawer with Playlist Editing
+Create a new "Now Playing Queue" drawer that shows all songs in the current playlist/queue. The drawer should:
+- Be triggered by tapping the playlist/song name in the Now Playing area or a dedicated queue icon
+- Show all songs with the currently playing song highlighted
+- Allow tapping any song to jump to it
+- Include an "Edit Mode" toggle that enables:
+  - Drag-and-drop reordering of songs
+  - Delete individual songs from the playlist
+  - Rename the playlist (inline edit)
+- Changes in edit mode should sync back to Supabase (update `track_order` for reordered songs, delete songs, update playlist name)
+
+### R5. Build Verification
+All changes must pass `npm run lint` (0 errors) and `npm run build` (exit code 0).
+
+## Acceptance Criteria
+
+### Control Bar
+- [ ] PlayerControls bar has visibly more vertical padding (~5px increase) compared to current state.
+- [ ] The bar remains responsive and doesn't overflow on mobile screens.
+
+### Recommendations Strip
+- [ ] UpNextRow takes no more than ~50px vertical space on a mobile viewport.
+- [ ] Recommended song title and action buttons (play, queue) are visible and functional.
+- [ ] The strip auto-hides when there are no recommendations (same as current behavior).
+
+### Lyrics
+- [ ] `GET /api/lyrics?title=Yolla&artist=Tarkan` returns lyrics (either synced or plain).
+- [ ] `GET /api/lyrics?title=Cambaz&artist=Mor+ve+%C3%96tesi` returns lyrics.
+- [ ] The lyrics API has at least 3 fallback sources (LRCLIB synced → LRCLIB search → Genius → lyrics.ovh).
+- [ ] YouTube title cleaning properly strips "(Official Video)", "HD", "VEVO", "- Topic" etc.
+
+### Now Playing Queue
+- [ ] Tapping the song/playlist name or a queue icon opens a queue drawer showing all songs.
+- [ ] The currently playing song is visually highlighted (pink accent).
+- [ ] Tapping a song in the queue starts playing it immediately.
+- [ ] Edit mode shows drag handles for reordering, delete buttons, and a rename field for the playlist.
+- [ ] Reordering songs updates `track_order` in Supabase.
+- [ ] Deleting a song removes it from the playlist in Supabase.
+- [ ] Renaming a playlist updates the name in Supabase.
+
+### Build
+- [ ] `npm run lint` exits with 0 errors (warnings acceptable).
+- [ ] `npm run build` exits with code 0 and all routes compile.

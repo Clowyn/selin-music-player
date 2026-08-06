@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { MicVocal, Shuffle, SkipBack, Play, Pause, SkipForward, Repeat, Repeat1, Search, Heart, ListPlus } from 'lucide-react';
+import { MicVocal, Shuffle, SkipBack, Play, Pause, SkipForward, Repeat, Repeat1, Search, Heart, ListPlus, ListMusic } from 'lucide-react';
 import { usePlayerStore } from '@/store/playerStore';
 import AddToPlaylistModal from './AddToPlaylistModal';
 
@@ -19,6 +19,8 @@ export default function PlayerControls() {
     setSearchDrawerOpen,
     isLyricsOpen,
     toggleLyricsOpen,
+    isQueueOpen,
+    setQueueOpen,
     favorites,
     toggleFavorite
   } = usePlayerStore();
@@ -35,7 +37,7 @@ export default function PlayerControls() {
 
   return (
     <>
-      <div className="flex items-center justify-center gap-1.5 min-[380px]:gap-2.5 sm:gap-6 p-3 sm:p-4 bg-white/10 backdrop-blur-xl rounded-2xl border border-white/20 shadow-lg">
+      <div className="flex items-center justify-center gap-1.5 min-[380px]:gap-2.5 sm:gap-6 px-3 py-4 sm:px-6 sm:py-5 bg-white/10 backdrop-blur-xl rounded-2xl border border-white/20 shadow-lg">
         <button 
           onClick={toggleLyricsOpen}
           className={`p-2 rounded-full transition-all ${
@@ -47,6 +49,19 @@ export default function PlayerControls() {
           title="Şarkı Sözleri (Karaoke)"
         >
           <MicVocal size={20} />
+        </button>
+
+        <button 
+          onClick={() => setQueueOpen(!isQueueOpen)}
+          className={`p-2 rounded-full transition-all ${
+            isQueueOpen
+              ? 'text-pink-400 bg-pink-500/20 border border-pink-500/30 shadow-[0_0_12px_rgba(236,72,153,0.3)]'
+              : 'text-gray-300 hover:text-white hover:bg-white/10'
+          }`}
+          aria-label="Çalma Sırası"
+          title="Çalma Sırası ve Listesi"
+        >
+          <ListMusic size={20} />
         </button>
 
         <button 

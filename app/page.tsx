@@ -11,6 +11,7 @@ import PlayerControls from '@/components/PlayerControls';
 import PlaylistDrawer from '@/components/PlaylistDrawer';
 import { SearchDrawer } from '@/components/SearchDrawer';
 import LyricsSheet from '@/components/LyricsSheet';
+import QueueDrawer from '@/components/QueueDrawer';
 
 export default function Home() {
   return (
@@ -61,6 +62,9 @@ export default function Home() {
           <SearchDrawer />
         </div>
       </div>
+
+      {/* Slide-up Queue Drawer */}
+      <QueueDrawer />
 
       {/* Slide-up Lyrics Sheet */}
       <LyricsSheet />

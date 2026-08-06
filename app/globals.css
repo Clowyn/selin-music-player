@@ -40,6 +40,13 @@
   .pr-safe {
     padding-right: env(safe-area-inset-right, 0px);
   }
+  .scrollbar-none::-webkit-scrollbar {
+    display: none;
+  }
+  .scrollbar-none {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
 }
 
 /* Custom seekbar styling */

@@ -16,6 +16,7 @@ interface PlayerState {
   favorites: Song[];
   searchDrawerOpen: boolean;
   isLyricsOpen: boolean;
+  isQueueOpen: boolean;
 
   play: () => void;
   pause: () => void;
@@ -37,6 +38,10 @@ interface PlayerState {
   setSearchDrawerOpen: (open: boolean) => void;
   setLyricsOpen: (open: boolean) => void;
   toggleLyricsOpen: () => void;
+  setQueueOpen: (open: boolean) => void;
+  reorderQueue: (newSongs: Song[]) => Promise<void>;
+  deleteSongFromPlaylist: (songId: string) => Promise<void>;
+  renamePlaylist: (playlistId: string, newName: string) => Promise<void>;
   toggleFavorite: (song: Song) => Promise<void>;
   fetchFavorites: () => Promise<void>;
 }
@@ -55,6 +60,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
   favorites: [],
   searchDrawerOpen: false,
   isLyricsOpen: false,
+  isQueueOpen: false,
 
   play: () => set({ isPlaying: true }),
   pause: () => set({ isPlaying: false }),
@@ -163,17 +169,130 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
   setSearchDrawerOpen: (open: boolean) => set((state) => ({
     searchDrawerOpen: open,
     isLyricsOpen: open ? false : state.isLyricsOpen,
+    isQueueOpen: open ? false : state.isQueueOpen,
   })),
 
   setLyricsOpen: (open: boolean) => set((state) => ({
     isLyricsOpen: open,
     searchDrawerOpen: open ? false : state.searchDrawerOpen,
+    isQueueOpen: open ? false : state.isQueueOpen,
   })),
 
   toggleLyricsOpen: () => set((state) => ({
     isLyricsOpen: !state.isLyricsOpen,
     searchDrawerOpen: !state.isLyricsOpen ? false : state.searchDrawerOpen,
+    isQueueOpen: !state.isLyricsOpen ? false : state.isQueueOpen,
   })),
+
+  setQueueOpen: (open: boolean) => set((state) => ({
+    isQueueOpen: open,
+    searchDrawerOpen: open ? false : state.searchDrawerOpen,
+    isLyricsOpen: open ? false : state.isLyricsOpen,
+  })),
+
+  reorderQueue: async (newSongs: Song[]) => {
+    const updatedSongs = newSongs.map((song, index) => ({
+      ...song,
+      track_order: index + 1,
+    }));
+
+    set({ songs: updatedSongs, queue: updatedSongs });
+
+    try {
+      const updatePromises = updatedSongs.map((song) =>
+        supabase
+          .from('songs')
+          .update({ track_order: song.track_order })
+          .eq('id', song.id)
+      );
+      const results = await Promise.all(updatePromises);
+      const errorResult = results.find((r) => r.error);
+      if (errorResult?.error) {
+        console.error('Supabase reorder track_order error:', errorResult.error);
+      }
+    } catch (err) {
+      console.error('Supabase reorder connection error:', err);
+    }
+  },
+
+  deleteSongFromPlaylist: async (songId: string) => {
+    const { currentSong, songs, queue } = get();
+    const updatedSongs = songs.filter((s) => s.id !== songId);
+    const updatedQueue = queue.filter((s) => s.id !== songId);
+
+    if (currentSong?.id === songId) {
+      if (updatedSongs.length > 0) {
+        const deletedIndex = songs.findIndex((s) => s.id === songId);
+        const nextIndex = deletedIndex < updatedSongs.length ? deletedIndex : 0;
+        set({
+          songs: updatedSongs,
+          queue: updatedQueue,
+          currentSong: updatedSongs[nextIndex],
+          currentTime: 0,
+          isPlaying: true,
+        });
+      } else {
+        set({
+          songs: [],
+          queue: [],
+          currentSong: null,
+          currentTime: 0,
+          duration: 0,
+          isPlaying: false,
+        });
+        const audio = document.getElementById('player-audio') as HTMLAudioElement;
+        if (audio) {
+          audio.pause();
+          audio.src = '';
+        }
+        if (typeof window !== 'undefined' && window.ytPlayer) {
+          try {
+            if (typeof window.ytPlayer.pauseVideo === 'function') {
+              window.ytPlayer.pauseVideo();
+            }
+          } catch {}
+        }
+      }
+    } else {
+      set({ songs: updatedSongs, queue: updatedQueue });
+    }
+
+    try {
+      const { error } = await supabase
+        .from('songs')
+        .delete()
+        .eq('id', songId);
+      if (error) {
+        console.error('Supabase delete song error:', error);
+      }
+    } catch (err) {
+      console.error('Supabase delete connection error:', err);
+    }
+  },
+
+  renamePlaylist: async (playlistId: string, newName: string) => {
+    const { currentPlaylist } = get();
+    if (currentPlaylist && currentPlaylist.id === playlistId) {
+      set({
+        currentPlaylist: {
+          ...currentPlaylist,
+          name: newName,
+        },
+      });
+    }
+
+    try {
+      const { error } = await supabase
+        .from('playlists')
+        .update({ name: newName })
+        .eq('id', playlistId);
+      if (error) {
+        console.error('Supabase rename playlist error:', error);
+      }
+    } catch (err) {
+      console.error('Supabase rename connection error:', err);
+    }
+  },
 
   toggleFavorite: async (song: Song) => {
     const { favorites } = get();

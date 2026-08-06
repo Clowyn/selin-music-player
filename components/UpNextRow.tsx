@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Play, Plus, Check, Sparkles, Music } from 'lucide-react';
+import { Plus, Check, Sparkles, Music } from 'lucide-react';
 import { usePlayerStore } from '@/store/playerStore';
 import { Song } from '@/lib/types';
 
@@ -80,30 +80,32 @@ export default function UpNextRow() {
   return (
     <div className="w-full">
       {/* Section Header */}
-      <div className="flex items-center justify-between px-1 mb-2">
+      <div className="flex items-center justify-between px-1 mb-1">
         <div className="flex items-center gap-1.5">
-          <Sparkles size={14} className="text-pink-400 animate-pulse" />
-          <span className="text-xs font-semibold text-purple-200/90 tracking-wide">
+          <Sparkles size={12} className="text-pink-400 animate-pulse" />
+          <span className="text-[10px] uppercase font-semibold text-gray-400 leading-none">
             Sıradaki Öneriler
           </span>
         </div>
-        <span className="text-[10px] font-medium text-pink-300/80 bg-pink-500/10 px-2 py-0.5 rounded-full border border-pink-500/20">
+        <span className="text-[8.5px] font-medium text-pink-300/80 bg-pink-500/10 px-1.5 rounded-full border border-pink-500/20 leading-none">
           Sana Özel
         </span>
       </div>
 
-      {/* Horizontal Scroll Area */}
-      <div className="flex overflow-x-auto gap-3 snap-x pb-2 pt-0.5 scrollbar-none -mx-2 px-2">
+      {/* Horizontal Scroll Strip */}
+      <div className="flex overflow-x-auto gap-2 snap-x snap-mandatory py-0 scrollbar-none -mx-1 px-1">
         {isLoading
           ? [1, 2, 3, 4].map((i) => (
               <div
                 key={i}
-                className="flex-shrink-0 w-36 sm:w-40 snap-start bg-white/5 border border-white/10 rounded-2xl p-2.5 animate-pulse flex flex-col gap-2"
+                className="flex-shrink-0 snap-start h-8 w-36 bg-white/5 border border-white/10 rounded-full px-1 animate-pulse flex items-center gap-1.5"
               >
-                <div className="w-full h-20 bg-white/10 rounded-xl" />
-                <div className="h-3 bg-white/10 rounded w-3/4" />
-                <div className="h-2.5 bg-white/10 rounded w-1/2" />
-                <div className="h-6 bg-white/10 rounded-lg mt-1" />
+                <div className="w-6 h-6 bg-white/10 rounded-full flex-shrink-0" />
+                <div className="flex-1 flex flex-col gap-0.5 min-w-0">
+                  <div className="h-2 bg-white/10 rounded w-3/4" />
+                  <div className="h-1.5 bg-white/10 rounded w-1/2" />
+                </div>
+                <div className="w-6 h-6 bg-white/10 rounded-full flex-shrink-0" />
               </div>
             ))
           : recommendations.map((song) => {
@@ -115,72 +117,60 @@ export default function UpNextRow() {
               return (
                 <motion.div
                   key={song.id}
-                  whileHover={{ y: -2 }}
-                  whileTap={{ scale: 0.98 }}
+                  whileHover={{ y: -1 }}
                   onClick={() => handlePlay(song)}
-                  className={`flex-shrink-0 w-36 sm:w-40 snap-start cursor-pointer bg-white/10 hover:bg-white/15 backdrop-blur-xl border ${
+                  className={`flex-shrink-0 snap-start cursor-pointer h-8 bg-white/10 hover:bg-white/15 backdrop-blur-xl border ${
                     isCurrent
-                      ? 'border-pink-500/60 bg-pink-500/10'
+                      ? 'border-pink-500/60 bg-pink-500/15'
                       : 'border-white/15 hover:border-pink-500/40'
-                  } rounded-2xl p-2.5 flex flex-col justify-between transition-all duration-200 shadow-lg group`}
+                  } rounded-full pl-1 pr-1 flex items-center gap-1.5 transition-all duration-200 shadow-md group`}
                 >
-                  {/* Cover Thumbnail & Play Overlay */}
-                  <div className="relative w-full h-20 rounded-xl overflow-hidden bg-gray-900/50 border border-white/10 flex-shrink-0">
+                  {/* Cover Thumbnail */}
+                  <div className="relative w-6 h-6 rounded-full overflow-hidden bg-gray-900/50 border border-white/10 flex-shrink-0 flex items-center justify-center">
                     {song.cover_url ? (
                       /* eslint-disable-next-line @next/next/no-img-element */
                       <img
                         src={song.cover_url}
                         alt={song.title}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                        className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
                       />
                     ) : (
-                      <div className="w-full h-full bg-gradient-to-br from-pink-500/20 to-purple-600/30 flex items-center justify-center">
-                        <Music size={24} className="text-purple-300" />
-                      </div>
+                      <Music size={12} className="text-purple-300" />
                     )}
-                    <div className="absolute inset-0 bg-black/40 backdrop-blur-[1px] group-hover:bg-pink-600/30 opacity-0 group-hover:opacity-100 transition-all flex items-center justify-center">
-                      <div className="w-9 h-9 rounded-full bg-pink-500 text-white flex items-center justify-center shadow-md transform group-hover:scale-105 transition-transform">
-                        <Play size={18} className="fill-white ml-0.5" />
-                      </div>
-                    </div>
                   </div>
 
                   {/* Song Metadata */}
-                  <div className="mt-2 min-w-0">
+                  <div className="min-w-0 flex-1 max-w-[100px] sm:max-w-[120px]">
                     <h4
-                      className="text-xs font-bold text-white truncate group-hover:text-pink-300 transition-colors"
+                      className="text-[10px] font-bold text-white truncate group-hover:text-pink-300 transition-colors leading-tight"
                       title={song.title}
                     >
                       {song.title}
                     </h4>
                     <p
-                      className="text-[10px] text-purple-200/70 truncate font-medium mt-0.5"
+                      className="text-[8.5px] text-purple-200/70 truncate font-medium leading-none mt-0.5"
                       title={song.artist}
                     >
                       {song.artist}
                     </p>
                   </div>
 
-                  {/* + Queue Button */}
+                  {/* Single Queue Action Button (24px x 24px) */}
                   <button
                     type="button"
                     onClick={(e) => handleQueue(e, song)}
-                    className={`mt-2.5 w-full py-1 px-2 rounded-lg text-[11px] font-semibold flex items-center justify-center gap-1 transition-all active:scale-95 border ${
+                    className={`w-6 h-6 rounded-full flex-shrink-0 flex items-center justify-center transition-all border ${
                       isAdded
                         ? 'bg-green-500/20 text-green-300 border-green-500/40'
                         : 'bg-white/10 hover:bg-pink-500/20 text-gray-200 hover:text-pink-300 border-white/10 hover:border-pink-500/40'
                     }`}
+                    title={isAdded ? 'Sıraya Eklendi' : 'Sıraya Ekle'}
+                    aria-label={isAdded ? 'Sıraya Eklendi' : 'Sıraya Ekle'}
                   >
                     {isAdded ? (
-                      <>
-                        <Check size={12} className="text-green-400" />
-                        <span>Eklendi</span>
-                      </>
+                      <Check size={12} className="text-green-400" />
                     ) : (
-                      <>
-                        <Plus size={12} />
-                        <span>+ Sıraya</span>
-                      </>
+                      <Plus size={12} />
                     )}
                   </button>
                 </motion.div>
