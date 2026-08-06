@@ -24,7 +24,7 @@
 | M1 | UI Adjustments | R1 Wider Control Bar & R2 Compact UpNext Strip | none | DONE |
 | M2 | Lyrics API Overhaul | R3 Genius Fallback & YouTube Metadata Cleaning | none | DONE |
 | M3 | Queue Drawer & Playlist Editing | R4 Now Playing Drawer, Reorder, Delete, Rename & Supabase Sync | M1 | DONE |
-| M4 | Build & Lint Verification | R5 Clean Lint & Production Build Verification | M1, M2, M3 | PLANNED |
+| M4 | Build & Lint Verification | R5 Clean Lint & Production Build Verification | M1, M2, M3 | DONE |
 
 ## Interface Contracts
 ### PlayerControls ↔ PlayerStore
