@@ -37,7 +37,7 @@ export default function PlayerControls() {
 
   return (
     <>
-      <div className="flex items-center justify-center gap-1.5 min-[380px]:gap-2.5 sm:gap-6 px-3 py-4 sm:px-6 sm:py-5 bg-white/10 backdrop-blur-xl rounded-2xl border border-white/20 shadow-lg">
+      <div className="flex items-center justify-center gap-1.5 min-[380px]:gap-2.5 sm:gap-6 px-4 py-6 sm:px-6 sm:py-7 bg-white/10 backdrop-blur-xl rounded-2xl border border-white/20 shadow-lg">
         <button 
           onClick={toggleLyricsOpen}
           className={`p-2 rounded-full transition-all ${

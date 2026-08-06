@@ -14,12 +14,6 @@ interface LastFmSimilarTrackRaw {
   } | string;
 }
 
-interface LastFmTopTrackRaw {
-  name?: string;
-  artist?: {
-    name?: string;
-  } | string;
-}
 
 /**
  * Cleans YouTube video titles and metadata noise (e.g. "(Official Video)", "[4K Remastered]").
@@ -117,18 +111,17 @@ async function fetchLastFmSimilar(
 }
 
 /**
- * Fetches top tracks from Last.fm artist.getTopTracks API as fallback.
+ * Fetches the top tags (genre/mood) for a track from Last.fm.
  */
-async function fetchLastFmTopTracks(
+async function fetchLastFmTrackTags(
+  title: string,
   artist: string,
-  seedTitle: string,
-  limit: number,
   apiKey: string
-): Promise<LastFmTrackCandidate[]> {
+): Promise<string[]> {
   try {
-    const url = `https://ws.audioscrobbler.com/2.0/?method=artist.gettoptracks&artist=${encodeURIComponent(
+    const url = `https://ws.audioscrobbler.com/2.0/?method=track.gettoptags&artist=${encodeURIComponent(
       artist
-    )}&limit=${limit * 2}&autocorrect=1&api_key=${apiKey}&format=json`;
+    )}&track=${encodeURIComponent(title)}&autocorrect=1&api_key=${apiKey}&format=json`;
 
     const res = await fetch(url, {
       signal: AbortSignal.timeout(4000),
@@ -139,21 +132,82 @@ async function fetchLastFmTopTracks(
     const data = await res.json();
     if (data.error) return [];
 
-    const rawTracks = data.toptracks?.track;
+    interface LastFmTag {
+      name?: string;
+      count?: number;
+    }
+
+    const rawTags: LastFmTag[] = data.toptags?.tag || [];
+    // Filter out generic/useless tags and return top 3
+    const ignoreTags = new Set([
+      'seen live', 'favorites', 'favourite', 'favorite', 'my favorite',
+      'love', 'loved', 'awesome', 'good', 'best', 'check out',
+      'spotify', 'youtube', 'all', 'albums i own',
+    ]);
+
+    return rawTags
+      .filter((t) => t.name && !ignoreTags.has(t.name.toLowerCase()) && (t.count === undefined || t.count > 10))
+      .slice(0, 3)
+      .map((t) => t.name as string);
+  } catch (err) {
+    console.warn('Last.fm track.getTopTags error:', err);
+    return [];
+  }
+}
+
+/**
+ * Fetches top tracks for a genre/tag from Last.fm tag.getTopTracks API.
+ * This returns songs from the SAME GENRE but DIFFERENT artists.
+ */
+async function fetchLastFmTagTopTracks(
+  tag: string,
+  seedTitle: string,
+  seedArtist: string,
+  limit: number,
+  apiKey: string
+): Promise<LastFmTrackCandidate[]> {
+  try {
+    const url = `https://ws.audioscrobbler.com/2.0/?method=tag.gettoptracks&tag=${encodeURIComponent(
+      tag
+    )}&limit=${limit * 3}&api_key=${apiKey}&format=json`;
+
+    const res = await fetch(url, {
+      signal: AbortSignal.timeout(4000),
+    });
+
+    if (!res.ok) return [];
+
+    const data = await res.json();
+    if (data.error) return [];
+
+    const rawTracks = data.tracks?.track;
     if (!rawTracks) return [];
 
-    const tracksArray: LastFmTopTrackRaw[] = Array.isArray(rawTracks)
+    interface TagTrackRaw {
+      name?: string;
+      artist?: {
+        name?: string;
+      };
+    }
+
+    const tracksArray: TagTrackRaw[] = Array.isArray(rawTracks)
       ? rawTracks
       : [rawTracks];
 
     const lowerSeedTitle = seedTitle.toLowerCase();
+    const lowerSeedArtist = seedArtist.toLowerCase();
     const candidates: LastFmTrackCandidate[] = [];
 
     for (const t of tracksArray) {
       const trackName = t.name;
-      const artistName = typeof t.artist === 'object' ? t.artist?.name : (t.artist || artist);
+      const artistName = t.artist?.name;
       if (trackName && artistName) {
-        if (seedTitle && trackName.toLowerCase() === lowerSeedTitle) {
+        // Skip the seed song itself AND skip same-artist songs to ensure variety
+        if (trackName.toLowerCase() === lowerSeedTitle && artistName.toLowerCase() === lowerSeedArtist) {
+          continue;
+        }
+        // Prefer songs from DIFFERENT artists for genre diversity
+        if (artistName.toLowerCase() === lowerSeedArtist) {
           continue;
         }
         candidates.push({ title: trackName, artist: artistName });
@@ -162,7 +216,7 @@ async function fetchLastFmTopTracks(
 
     return candidates;
   } catch (err) {
-    console.warn('Last.fm artist.getTopTracks error:', err);
+    console.warn('Last.fm tag.getTopTracks error:', err);
     return [];
   }
 }
@@ -219,17 +273,48 @@ export async function GET(request: Request) {
     let candidates: LastFmTrackCandidate[] = [];
 
     if (apiKey && (title || artist)) {
+      // 1. Primary: track.getSimilar (music-DNA based similarity)
       if (title && artist) {
         candidates = await fetchLastFmSimilar(title, artist, limit, apiKey);
       }
 
-      if (candidates.length === 0 && artist) {
-        candidates = await fetchLastFmTopTracks(artist, title, limit, apiKey);
+      // 2. Fallback: genre/tag-based discovery (different artists, same genre)
+      if (candidates.length < 3 && title && artist) {
+        const tags = await fetchLastFmTrackTags(title, artist, apiKey);
+        if (tags.length > 0) {
+          // Fetch from multiple genre tags and merge for diversity
+          const tagPromises = tags.map((tag) =>
+            fetchLastFmTagTopTracks(tag, title, artist, limit, apiKey)
+          );
+          const tagResults = await Promise.all(tagPromises);
+          
+          // Interleave results from different tags for variety
+          const seenKeys = new Set(candidates.map((c) => `${c.title.toLowerCase()}|${c.artist.toLowerCase()}`));
+          for (const tagCandidates of tagResults) {
+            for (const c of tagCandidates) {
+              const key = `${c.title.toLowerCase()}|${c.artist.toLowerCase()}`;
+              if (!seenKeys.has(key)) {
+                seenKeys.add(key);
+                candidates.push(c);
+              }
+            }
+          }
+        }
       }
     }
 
     if (candidates.length === 0) {
+      // YouTube fallback: search for genre-based content, not same artist
+      const genreQuery = artist 
+        ? `${artist} genre similar artists music`
+        : `${title} similar songs`;
       const fallbackSongs = await fetchYouTubeFallback(title, artist, limit);
+      // If YouTube fallback also gets same-artist results, try a genre search
+      if (fallbackSongs.length === 0) {
+        const ytResults = await searchYouTube(genreQuery, limit);
+        const genreSongs = ytResults.map((yt) => youtubeSearchResultToSong(yt));
+        return NextResponse.json({ recommendations: genreSongs });
+      }
       return NextResponse.json({ recommendations: fallbackSongs });
     }
 
