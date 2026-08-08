@@ -52,21 +52,19 @@ export default function Home() {
         </div>
 
         {/* Player controls with secondary action buttons */}
-        <div className="px-6 mb-6">
+        <div className="px-6 mb-3">
           <PlayerControls />
+        </div>
+
+        {/* Drawer triggers area */}
+        <div className="px-6 mb-6 flex items-center justify-center gap-4">
+          <PlaylistDrawer />
         </div>
       </div>
 
-      {/* Playlist Drawer */}
-      <PlaylistDrawer />
-
-      {/* Search Drawer */}
+      {/* Overlay drawers - use fixed positioning so root placement is fine */}
       <SearchDrawer />
-
-      {/* Slide-up Queue Drawer */}
       <QueueDrawer />
-
-      {/* Slide-up Lyrics Sheet */}
       <LyricsSheet />
     </main>
   );
