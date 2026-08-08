@@ -11,7 +11,6 @@ import ImportPlaylistModal from './ImportPlaylistModal';
 type PlaylistWithCount = Playlist & { songs?: { count: number }[] };
 
 export default function PlaylistDrawer() {
-  const [isOpen, setIsOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<'playlists' | 'favorites' | 'discover'>('playlists');
   const [playlists, setPlaylists] = useState<PlaylistWithCount[]>([]);
   const [loadingPlaylists, setLoadingPlaylists] = useState(false);
@@ -24,6 +23,8 @@ export default function PlaylistDrawer() {
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   
   const {
+    isPlaylistOpen,
+    setPlaylistOpen,
     currentPlaylist,
     setCurrentPlaylist,
     setSongs,
@@ -45,7 +46,7 @@ export default function PlaylistDrawer() {
   };
 
   useEffect(() => {
-    if (!isOpen) return;
+    if (!isPlaylistOpen) return;
 
     if (activeTab === 'playlists') {
       let isMounted = true;
@@ -121,11 +122,11 @@ export default function PlaylistDrawer() {
         isMounted = false;
       };
     }
-  }, [isOpen, activeTab, fetchFavorites, currentSongTitle, currentSongArtist]);
+  }, [isPlaylistOpen, activeTab, fetchFavorites, currentSongTitle, currentSongArtist]);
 
   const handleSelectPlaylist = async (playlist: PlaylistWithCount) => {
     setCurrentPlaylist(playlist as Playlist);
-    setIsOpen(false);
+    setPlaylistOpen(false);
     
     // Fetch songs
     const { data: songsData } = await supabase
@@ -147,13 +148,13 @@ export default function PlaylistDrawer() {
     setSongs(favorites);
     setCurrentSong(song);
     play();
-    setIsOpen(false);
+    setPlaylistOpen(false);
   };
 
   const handlePlayRecommendation = (song: Song) => {
     setCurrentSong(song);
     play();
-    setIsOpen(false);
+    setPlaylistOpen(false);
     showToast(`"${song.title.slice(0, 20)}..." oynatılıyor ▶`);
   };
 
@@ -180,7 +181,7 @@ export default function PlaylistDrawer() {
     <>
       <button 
         onClick={() => {
-          setIsOpen(true);
+          setPlaylistOpen(true);
           fetchFavorites();
         }}
         className="p-3 bg-white/10 backdrop-blur-md rounded-full text-white hover:bg-white/20 transition-colors shadow-lg"
@@ -190,13 +191,13 @@ export default function PlaylistDrawer() {
       </button>
 
       <AnimatePresence>
-        {isOpen && (
+        {isPlaylistOpen && (
           <>
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              onClick={() => setIsOpen(false)}
+              onClick={() => setPlaylistOpen(false)}
               className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40"
             />
             
@@ -251,7 +252,7 @@ export default function PlaylistDrawer() {
                 </div>
 
                 <button 
-                  onClick={() => setIsOpen(false)} 
+                  onClick={() => setPlaylistOpen(false)} 
                   className="p-2 text-gray-400 hover:text-white bg-white/5 rounded-full transition-colors ml-2"
                 >
                   <X size={20} />
@@ -561,7 +562,7 @@ export default function PlaylistDrawer() {
         onClose={() => {
           setShowImport(false);
           // Refresh playlists after import
-          if (isOpen && activeTab === 'playlists') {
+          if (isPlaylistOpen && activeTab === 'playlists') {
             supabase
               .from('playlists')
               .select('*, songs(count)')

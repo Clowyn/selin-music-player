@@ -139,3 +139,59 @@ All changes must pass `npm run lint` (0 errors) and `npm run build` (exit code 0
 ### Build
 - [ ] `npm run lint` exits with 0 errors (warnings acceptable).
 - [ ] `npm run build` exits with code 0 and all routes compile.
+
+## Follow-up — 2026-08-08T21:39:07Z
+
+# Teamwork Project Prompt — Selin Music Player UI & Recommendation Fixes
+
+Fix 3 core issues in the Selin Music Player PWA (`d:\Projeler\Selin\selin-player`):
+
+Working directory: d:\Projeler\Selin\selin-player
+Integrity mode: development
+
+## Requirements
+
+### R1. Control Panel Frame & Button Layout
+- Fix button overflow in `components/PlayerControls.tsx`. The glassmorphic background container must frame all controls cleanly without any buttons overflowing out of the box or getting cut off on mobile/desktop screens.
+- Use a clean 2-row layout or a responsive flex arrangement where main playback controls (Shuffle, SkipBack, Play/Pause, SkipForward, Repeat) stay inside the main glass card and secondary action buttons (Lyrics, Queue, Search, Favorite, Add to Playlist) are neatly positioned.
+- Revert any excessive padding on individual buttons so the container visually frames the buttons naturally.
+
+### R2. Restore & Fix Lyrics Sheet
+- Ensure the Lyrics Karaoke Sheet (`components/LyricsSheet.tsx`) opens cleanly when the Lyrics (`MicVocal`) icon is clicked in `PlayerControls.tsx`.
+- Verify state synchronization (`isLyricsOpen`, `toggleLyricsOpen`, `setLyricsOpen`) in `store/playerStore.ts` and proper z-index / layout composition in `app/page.tsx`.
+- Ensure fallback plain lyrics and synced LRC lyrics render reliably when requested.
+
+### R3. Genre-Based Smart Recommendation Engine
+- Overhaul `app/api/recommendations/route.ts` and `components/UpNextRow.tsx` / `components/PlaylistDrawer.tsx` / `components/SearchDrawer.tsx`.
+- Recommendations MUST return songs of the **SAME GENRE / MOOD / STYLE** rather than unrelated playlists or random videos.
+- Example: When playing "Dolu Kadehi Ters Tut - Dilerim Ki", recommendations should return Turkish Indie/Rock/Pop tracks like "Dolu Kadehi Ters Tut - Madem", "Mavi Gri - Dünyanın En Güzel Kızı", "Pinhani - Beni Al", etc.
+- Enhance Last.fm API strategy (`track.getSimilar`, `track.getTopTags`, `tag.getTopTracks`) and YouTube search fallback to search specifically by genre/artist similarity queries (`artist + genre + mix / similar`).
+- Clean up title & artist metadata parsing so recommendations display clean song titles and artist names instead of full YouTube channel names or playlist titles.
+
+### R4. Build Verification
+- Pass `npm run lint` with 0 errors.
+- Pass `npm run build` with exit code 0.
+
+## Acceptance Criteria
+
+### Control Panel
+- [ ] Control buttons do not overflow outside the glass background container on any screen width.
+- [ ] Container cleanly wraps all buttons with visually balanced padding.
+
+### Lyrics Sheet
+- [ ] Clicking the `MicVocal` icon opens the slide-up lyrics sheet backdrop and modal.
+- [ ] Lyrics API returns lyrics or a friendly empty state without breaking UI layout.
+
+### Recommendations
+- [ ] Querying recommendations for a Turkish Indie/Pop/Rock track returns songs of the exact same genre/style.
+- [ ] Recommended items are playable individual songs with proper titles, artists, thumbnails, and durations.
+
+### Build
+- [ ] `npm run lint` exits with 0 errors.
+
+
+## Follow-up — 2026-08-08T21:43:37Z
+
+The user updated `PlayerControls.tsx` with a clean 2-row layout inside a unified `max-w-md` glassmorphic container. Verify R1 against this update and proceed with R2, R3, R4.
+
+

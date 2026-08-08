@@ -17,6 +17,7 @@ interface PlayerState {
   searchDrawerOpen: boolean;
   isLyricsOpen: boolean;
   isQueueOpen: boolean;
+  isPlaylistOpen: boolean;
 
   play: () => void;
   pause: () => void;
@@ -39,6 +40,8 @@ interface PlayerState {
   setLyricsOpen: (open: boolean) => void;
   toggleLyricsOpen: () => void;
   setQueueOpen: (open: boolean) => void;
+  setPlaylistOpen: (open: boolean) => void;
+  togglePlaylistOpen: () => void;
   reorderQueue: (newSongs: Song[]) => Promise<void>;
   deleteSongFromPlaylist: (songId: string) => Promise<void>;
   renamePlaylist: (playlistId: string, newName: string) => Promise<void>;
@@ -61,6 +64,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
   searchDrawerOpen: false,
   isLyricsOpen: false,
   isQueueOpen: false,
+  isPlaylistOpen: false,
 
   play: () => set({ isPlaying: true }),
   pause: () => set({ isPlaying: false }),
@@ -170,25 +174,49 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
     searchDrawerOpen: open,
     isLyricsOpen: open ? false : state.isLyricsOpen,
     isQueueOpen: open ? false : state.isQueueOpen,
+    isPlaylistOpen: open ? false : state.isPlaylistOpen,
   })),
 
   setLyricsOpen: (open: boolean) => set((state) => ({
     isLyricsOpen: open,
     searchDrawerOpen: open ? false : state.searchDrawerOpen,
     isQueueOpen: open ? false : state.isQueueOpen,
+    isPlaylistOpen: open ? false : state.isPlaylistOpen,
   })),
 
-  toggleLyricsOpen: () => set((state) => ({
-    isLyricsOpen: !state.isLyricsOpen,
-    searchDrawerOpen: !state.isLyricsOpen ? false : state.searchDrawerOpen,
-    isQueueOpen: !state.isLyricsOpen ? false : state.isQueueOpen,
-  })),
+  toggleLyricsOpen: () => set((state) => {
+    const nextOpen = !state.isLyricsOpen;
+    return {
+      isLyricsOpen: nextOpen,
+      searchDrawerOpen: nextOpen ? false : state.searchDrawerOpen,
+      isQueueOpen: nextOpen ? false : state.isQueueOpen,
+      isPlaylistOpen: nextOpen ? false : state.isPlaylistOpen,
+    };
+  }),
 
   setQueueOpen: (open: boolean) => set((state) => ({
     isQueueOpen: open,
     searchDrawerOpen: open ? false : state.searchDrawerOpen,
     isLyricsOpen: open ? false : state.isLyricsOpen,
+    isPlaylistOpen: open ? false : state.isPlaylistOpen,
   })),
+
+  setPlaylistOpen: (open: boolean) => set((state) => ({
+    isPlaylistOpen: open,
+    searchDrawerOpen: open ? false : state.searchDrawerOpen,
+    isLyricsOpen: open ? false : state.isLyricsOpen,
+    isQueueOpen: open ? false : state.isQueueOpen,
+  })),
+
+  togglePlaylistOpen: () => set((state) => {
+    const nextOpen = !state.isPlaylistOpen;
+    return {
+      isPlaylistOpen: nextOpen,
+      searchDrawerOpen: nextOpen ? false : state.searchDrawerOpen,
+      isLyricsOpen: nextOpen ? false : state.isLyricsOpen,
+      isQueueOpen: nextOpen ? false : state.isQueueOpen,
+    };
+  }),
 
   reorderQueue: async (newSongs: Song[]) => {
     const updatedSongs = newSongs.map((song, index) => ({

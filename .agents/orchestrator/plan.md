@@ -1,31 +1,15 @@
-# Execution Plan: Selin Music Player Enhancements
+# Plan: Selin Music Player UI & Recommendation Fixes
 
-## Phase 0: Survey & Specification (Completed)
-- [x] Explorer 1: Data layer & API patterns survey (`store/playerStore.ts`, `lib/types.ts`, `app/api/search/route.ts`)
-- [x] Explorer 2: UI component architecture & integration points (`PlaylistDrawer`, `SearchDrawer`, `PlayerControls`, `AudioEngine`, `page.tsx`)
-- [x] Explorer 3: Project infrastructure, build setup, Last.fm, LRCLIB & lyrics.ovh APIs
-- [x] Synthesize findings into `.agents/PROJECT.md`
+## Objectives
+1. M1: Fix Control Panel Frame & Button Layout in `components/PlayerControls.tsx` (glassmorphic container framing, clean layout, no button overflow).
+2. M2: Restore & Fix Lyrics Sheet in `components/LyricsSheet.tsx`, `store/playerStore.ts`, and `app/page.tsx` (`MicVocal` icon trigger, `isLyricsOpen` state sync, fallback plain lyrics and LRC lyrics).
+3. M3: Overhaul Recommendation Engine & UI in `app/api/recommendations/route.ts`, `components/UpNextRow.tsx`, `components/PlaylistDrawer.tsx`, `components/SearchDrawer.tsx` (same genre/mood/style recommendations e.g. Dolu Kadehi Ters Tut -> Turkish Indie/Pop/Rock, Last.fm tag/artist similarity, YouTube fallback, clean title/artist metadata).
+4. M4: Integration & Build Verification (`npm run lint` with 0 errors, `npm run build` with exit code 0).
 
-## Milestone 1: Song Recommendations Engine (API)
-- [ ] Refactor YouTube search helper into `lib/youtube.ts` (reused by search and recommendations)
-- [ ] Create `app/api/recommendations/route.ts` using Last.fm `track.getSimilar` + YouTube search lookup
-- [ ] Update `.env.example` with `LASTFM_API_KEY`
-- [ ] Iteration loop: Explorer -> Worker -> Reviewers (2) + Challengers (2) + Forensic Auditor -> Gate Verification
-
-## Milestone 2: Recommendations UI Placements
-- [ ] Implement "Keşfet" (Discover) 3rd tab in `components/PlaylistDrawer.tsx` (10-15 songs)
-- [ ] Implement dynamic empty state recommendations in `components/SearchDrawer.tsx` (5-8 songs)
-- [ ] Implement "Up Next" horizontal scrollable card row on `app/page.tsx` (3-5 songs)
-- [ ] Iteration loop: Explorer -> Worker -> Reviewers (2) + Challengers (2) + Forensic Auditor -> Gate Verification
-
-## Milestone 3: Synced Lyrics Viewer & API
-- [ ] Create `app/api/lyrics/route.ts` with LRCLIB (`syncedLyrics` / `plainLyrics`) + `lyrics.ovh` fallback & LRC parser
-- [ ] Create `components/LyricsSheet.tsx` component with karaoke line highlight (`text-pink-400`), auto-scroll, static fallback, and empty state
-- [ ] Add `MicVocal` (♪) lyrics trigger button to `components/PlayerControls.tsx`
-- [ ] Integrate `LyricsSheet` into `app/page.tsx`
-- [ ] Iteration loop: Explorer -> Worker -> Reviewers (2) + Challengers (2) + Forensic Auditor -> Gate Verification
-
-## Milestone 4: Integration & Build Verification
-- [ ] Run `npm run lint` and fix any ESLint issues (target: 0 errors)
-- [ ] Run `npm run build` and ensure exit code 0
-- [ ] Iteration loop: Explorer -> Worker -> Reviewers (2) + Challengers (2) + Forensic Auditor -> Gate Verification
+## Execution Strategy
+- Step 0: Dispatch 3 parallel Explorers to analyze M1 (PlayerControls layout), M2 (LyricsSheet state/events), and M3 (Recommendations engine & metadata parsing).
+- Step 1: Execute Milestone 1 (Control Panel Frame & Layout) -> Explorer -> Worker -> Reviewers + Challengers + Forensic Auditor -> Gate Verification.
+- Step 2: Execute Milestone 2 (Restore & Fix Lyrics Sheet) -> Explorer -> Worker -> Reviewers + Challengers + Forensic Auditor -> Gate Verification.
+- Step 3: Execute Milestone 3 (Genre-Based Smart Recommendation Engine) -> Explorer -> Worker -> Reviewers + Challengers + Forensic Auditor -> Gate Verification.
+- Step 4: Execute Milestone 4 (Build Verification) -> Worker -> Reviewers + Challengers + Forensic Auditor -> Gate Verification.
+- Step 5: Report victory/completion to the Sentinel/Parent.

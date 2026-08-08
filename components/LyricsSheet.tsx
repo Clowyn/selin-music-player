@@ -15,6 +15,9 @@ export interface LyricsData {
   synced: boolean;
   lines?: LyricLine[];
   error?: string;
+  songId?: string;
+  title?: string;
+  artist?: string;
 }
 
 /**
@@ -67,6 +70,11 @@ export default function LyricsSheet() {
     }
 
     let isMounted = true;
+    Promise.resolve().then(() => {
+      if (isMounted) {
+        setFetchingSongId(songId);
+      }
+    });
 
     const title = encodeURIComponent(currentSong.title);
     const artist = encodeURIComponent(currentSong.artist || '');
@@ -75,7 +83,12 @@ export default function LyricsSheet() {
       .then((res) => res.json())
       .then((data: LyricsData) => {
         if (isMounted) {
-          setLyricsData(data);
+          setLyricsData({
+            ...data,
+            songId: currentSong.id,
+            title: currentSong.title,
+            artist: currentSong.artist,
+          });
           setFetchingSongId(null);
           setIsUserScrolling(false);
         }
@@ -83,7 +96,14 @@ export default function LyricsSheet() {
       .catch((err) => {
         if (isMounted) {
           console.error('Fetch lyrics error:', err);
-          setLyricsData({ lyrics: null, synced: false, error: 'Şarkı sözleri yüklenirken bir hata oluştu' });
+          setLyricsData({
+            lyrics: null,
+            synced: false,
+            error: 'Şarkı sözleri yüklenirken bir hata oluştu',
+            songId: currentSong.id,
+            title: currentSong.title,
+            artist: currentSong.artist,
+          });
           setFetchingSongId(null);
           setIsUserScrolling(false);
         }
@@ -92,7 +112,7 @@ export default function LyricsSheet() {
     return () => {
       isMounted = false;
     };
-  }, [isLyricsOpen, currentSong]);
+  }, [isLyricsOpen, currentSong, songId]);
 
   const handleClose = () => {
     setLyricsOpen(false);
@@ -110,20 +130,34 @@ export default function LyricsSheet() {
     fetch(`/api/lyrics?title=${title}&artist=${artist}`)
       .then((res) => res.json())
       .then((data: LyricsData) => {
-        setLyricsData(data);
+        setLyricsData({
+          ...data,
+          songId: currentSong.id,
+          title: currentSong.title,
+          artist: currentSong.artist,
+        });
         setFetchingSongId(null);
       })
       .catch((err) => {
         console.error('Fetch lyrics error:', err);
-        setLyricsData({ lyrics: null, synced: false, error: 'Şarkı sözleri yüklenirken bir hata oluştu' });
+        setLyricsData({
+          lyrics: null,
+          synced: false,
+          error: 'Şarkı sözleri yüklenirken bir hata oluştu',
+          songId: currentSong.id,
+          title: currentSong.title,
+          artist: currentSong.artist,
+        });
         setFetchingSongId(null);
       });
   };
 
-  const isLoading = fetchingSongId === songId || (!lyricsData && isLyricsOpen && !!currentSong?.title);
+  const isStale = lyricsData && currentSong && (lyricsData.songId !== currentSong.id && (lyricsData.title !== currentSong.title || lyricsData.artist !== currentSong.artist));
+  const activeLyricsData = isStale ? null : lyricsData;
+  const isLoading = fetchingSongId === songId || (!activeLyricsData && isLyricsOpen && !!currentSong?.title);
 
-  const activeIndex = lyricsData?.synced && lyricsData.lines
-    ? findActiveLineIndex(lyricsData.lines, currentTime)
+  const activeIndex = activeLyricsData?.synced && activeLyricsData.lines
+    ? findActiveLineIndex(activeLyricsData.lines, currentTime)
     : -1;
 
   // Smooth auto-scroll to active line
@@ -218,7 +252,7 @@ export default function LyricsSheet() {
                     Şarkı sözleri yükleniyor...
                   </p>
                 </div>
-              ) : lyricsData?.synced && lyricsData.lines && lyricsData.lines.length > 0 ? (
+              ) : activeLyricsData?.synced && activeLyricsData.lines && activeLyricsData.lines.length > 0 ? (
                 /* Synced Karaoke View */
                 <div
                   ref={containerRef}
@@ -226,7 +260,7 @@ export default function LyricsSheet() {
                   onTouchMove={handleScroll}
                   className="flex-1 overflow-y-auto px-6 py-12 space-y-2 scroll-smooth"
                 >
-                  {lyricsData.lines.map((line, index) => {
+                  {activeLyricsData.lines.map((line, index) => {
                     const isActive = index === activeIndex;
                     const isPast = index < activeIndex;
 
@@ -251,7 +285,7 @@ export default function LyricsSheet() {
                     );
                   })}
                 </div>
-              ) : lyricsData?.lyrics ? (
+              ) : activeLyricsData?.lyrics ? (
                 /* Static Plain Lyrics View */
                 <div className="flex-1 overflow-y-auto px-6 py-6 scroll-smooth">
                   <div className="flex items-center justify-center gap-2 mb-6 text-xs text-purple-300/80 bg-purple-500/10 py-1.5 px-4 rounded-full border border-purple-500/20 max-w-fit mx-auto">
@@ -259,7 +293,7 @@ export default function LyricsSheet() {
                     <span>Statik Şarkı Sözleri (Zaman Senkronizasyonu Yok)</span>
                   </div>
                   <div className="text-gray-200 text-base sm:text-lg leading-relaxed text-center font-medium whitespace-pre-wrap select-text max-w-xl mx-auto space-y-2">
-                    {lyricsData.lyrics}
+                    {activeLyricsData.lyrics}
                   </div>
                 </div>
               ) : (
@@ -289,7 +323,7 @@ export default function LyricsSheet() {
               )}
 
               {/* Floating Return Button when manually scrolling synced lyrics */}
-              {isUserScrolling && lyricsData?.synced && activeIndex !== -1 && (
+              {isUserScrolling && activeLyricsData?.synced && activeIndex !== -1 && (
                 <motion.button
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}

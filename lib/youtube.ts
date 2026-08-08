@@ -281,20 +281,182 @@ export async function searchYouTube(
   }
 }
 
+export const RECORD_LABELS = new Set([
+  'netd müzik',
+  'netd musik',
+  'netd muzık',
+  'netd',
+  'poll production',
+  'pasaj müzik',
+  'pasaj muzik',
+  'pasaj müzik tv',
+  'pasaj',
+  'dmc',
+  'doğan müzik',
+  'doğan müzik yapım',
+  'doğan music company',
+  'kalan müzik',
+  'kalan muzik',
+  'kalan',
+  'avrupa müzik',
+  'avrupa muzik',
+  'avrupa',
+  'dokuz sekiz müzik',
+  'dokuz sekiz',
+  'dokuzsekiz müzik',
+  'seyhan müzik',
+  'seyhan muzik',
+  "spinnin' records",
+  'sony music',
+  'sony music türkiye',
+  'sony music turkiye',
+  'universal music',
+  'universal music turkey',
+  'warner music',
+  'gözde müzik',
+  'emre müzik',
+  'eflatun müzik',
+  'mü-yap',
+  'muyap',
+  'vevo',
+  'youtube',
+  'topic',
+  '- topic',
+  'official',
+  'wediacorp music',
+  'wediacorp',
+]);
+
 /**
- * Converts a YouTubeSearchResult into a standard application Song object.
+ * Cleans YouTube video titles and extra metadata noise (e.g. "(Official Video)", "[4K Remastered]").
+ */
+export function cleanTitle(title: string): string {
+  if (!title) return '';
+  return title
+    .replace(/\s*\|.*$/g, '')
+    .replace(
+      /\([^)]*?\b(official|video|lyric|lyrics|lirik|sözleri|hd|4k|8k|remastered|remix|clip|klip|klipsiz|audio|vizyon|mv|feat|ft|prod|orijinal|vevo|topic|live|music video)\b[^)]*?\)/gi,
+      ''
+    )
+    .replace(
+      /\[[^\]]*?\b(official|video|lyric|lyrics|lirik|sözleri|hd|4k|8k|remastered|remix|clip|klip|klipsiz|audio|vizyon|mv|feat|ft|prod|orijinal|vevo|topic|live|music video)\b[^\]]*?\]/gi,
+      ''
+    )
+    .replace(
+      /\b(official video|official music video|lyric video|official audio|video klip|resmi video|hd|4k|remastered|klipsiz|feat\.|ft\.)\b/gi,
+      ''
+    )
+    .replace(/^["'“‘«]+|["'”’»]+$/g, '')
+    .replace(/^[\s\-–—|:]+|[\s\-–—|:]+$/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+/**
+ * Cleans artist name by removing VEVO, - Topic, and generic channel suffixes.
+ */
+export function cleanArtist(artist: string): string {
+  if (!artist) return '';
+  return artist
+    .replace(/VEVO$/i, '')
+    .replace(/\s*-\s*Topic$/i, '')
+    .replace(/\s+Topic$/i, '')
+    .replace(/\b(Official YouTube Channel|Official Channel|Official Page|Official)\b/gi, '')
+    .replace(/^["'“‘«]+|["'”’»]+$/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+export interface YouTubeSearchResultLike {
+  title: string;
+  durationSeconds?: number;
+}
+
+/**
+ * Filter to reject YouTube videos with duration > 600s or < 45s, or titles containing playlist/mix keywords.
+ */
+export function isSingleTrack(yt: YouTubeSearchResultLike): boolean {
+  if (yt.durationSeconds && (yt.durationSeconds > 600 || yt.durationSeconds < 45)) {
+    return false;
+  }
+  const lowerTitle = (yt.title || '').toLowerCase();
+  const playlistKeywords = [
+    'playlist',
+    'album',
+    'albüm',
+    '1 saat',
+    '2 saat',
+    'full album',
+    'tüm şarkıları',
+    'tum sarkilari',
+    'kesintisiz',
+    'en çok dinlenenler',
+    'best of',
+    'compilation',
+  ];
+  if (playlistKeywords.some((kw) => lowerTitle.includes(kw))) {
+    return false;
+  }
+
+  // Reject 'mix' as a standalone keyword, but do not reject legitimate single-track remixes
+  const titleWithoutRemix = lowerTitle
+    .replace(/\bremix\b/gi, '')
+    .replace(/\bremiks\b/gi, '');
+  if (/\bmix\b/i.test(titleWithoutRemix)) {
+    return false;
+  }
+
+  return true;
+}
+
+/**
+ * Converts a YouTubeSearchResult into a standard application Song object,
+ * automatically sanitizing titles and artists.
  */
 export function youtubeSearchResultToSong(
   result: YouTubeSearchResult,
   overrideArtist?: string
 ): Song {
+  let rawTitle = result.title || '';
+  let rawArtist = overrideArtist || result.channelTitle || '';
+
+  const cleanedArt = cleanArtist(rawArtist);
+  const lowerArtist = cleanedArt.toLowerCase();
+  const isPublisherOrGeneric =
+    !cleanedArt ||
+    RECORD_LABELS.has(lowerArtist) ||
+    Array.from(RECORD_LABELS).some(
+      (label) => lowerArtist.endsWith(` ${label}`) || lowerArtist.endsWith(`-${label}`)
+    );
+
+  if (
+    (isPublisherOrGeneric || !overrideArtist) &&
+    (rawTitle.includes(' - ') || rawTitle.includes(' – ') || rawTitle.includes(' — '))
+  ) {
+    const parts = rawTitle.split(/\s*[-–—]\s*/);
+    if (parts.length >= 2) {
+      if (isPublisherOrGeneric || !overrideArtist) {
+        rawArtist = parts[0];
+      }
+      rawTitle = parts.slice(1).join(' - ');
+    }
+  }
+
+  let finalTitle = cleanTitle(rawTitle);
+  const finalArtist = cleanArtist(rawArtist);
+
+  if (finalArtist && finalTitle.toLowerCase().startsWith(`${finalArtist.toLowerCase()} - `)) {
+    finalTitle = finalTitle.substring(finalArtist.length + 3).trim();
+  }
+
   return {
     id: `yt-${result.id}`,
-    title: result.title,
-    artist: overrideArtist || result.channelTitle,
+    title: finalTitle,
+    artist: finalArtist,
     audio_url: `https://www.youtube.com/watch?v=${result.id}`,
     youtube_id: result.id,
     duration: result.durationSeconds || 210,
     cover_url: result.thumbnail,
   };
 }
+

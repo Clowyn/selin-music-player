@@ -1,6 +1,13 @@
 import { NextResponse } from 'next/server';
 import { Song } from '@/lib/types';
-import { searchYouTube, youtubeSearchResultToSong } from '@/lib/youtube';
+import {
+  searchYouTube,
+  youtubeSearchResultToSong,
+  cleanTitle,
+  cleanArtist,
+  RECORD_LABELS,
+  isSingleTrack,
+} from '@/lib/youtube';
 
 interface LastFmTrackCandidate {
   title: string;
@@ -14,53 +21,47 @@ interface LastFmSimilarTrackRaw {
   } | string;
 }
 
-
-/**
- * Cleans YouTube video titles and metadata noise (e.g. "(Official Video)", "[4K Remastered]").
- */
-function cleanTitle(title: string): string {
-  if (!title) return '';
-  return title
-    .replace(/\((official|lyric|live|audio|video|hd|4k|remastered|remix|clip|music video|vizyon).*?\)/gi, '')
-    .replace(/\[(official|lyric|live|audio|video|hd|4k|remastered|remix|clip|music video).*?\]/gi, '')
-    .replace(/\b(official video|official music video|lyric video|official audio|hd|4k|remastered)\b/gi, '')
-    .replace(/\s+/g, ' ')
-    .trim();
-}
-
-/**
- * Cleans artist name by removing common YouTube suffixes like VEVO or - Topic.
- */
-function cleanArtist(artist: string): string {
-  if (!artist) return '';
-  return artist
-    .replace(/VEVO$/i, '')
-    .replace(/ - Topic$/i, '')
-    .replace(/\bOfficial\b/gi, '')
-    .replace(/\s+/g, ' ')
-    .trim();
-}
-
 /**
  * Parses and sanitizes input title & artist parameters.
+ * If artist is missing or is a record label/publisher channel, parses "Artist - Title" from title.
  */
-function sanitizeInputs(rawTitle: string, rawArtist: string): { title: string; artist: string } {
-  let title = rawTitle.trim();
-  let artist = rawArtist.trim();
+export function sanitizeInputs(
+  rawTitle: string,
+  rawArtist: string
+): { title: string; artist: string } {
+  let title = (rawTitle || '').trim();
+  let artist = (rawArtist || '').trim();
 
-  // Handle case where title contains "Artist - Song Title"
-  const isGenericArtist = !artist || artist.toLowerCase() === 'youtube' || artist.toLowerCase().endsWith('vevo') || artist.toLowerCase().endsWith('- topic');
-  if (isGenericArtist && (title.includes(' - ') || title.includes(' – ') || title.includes(' — '))) {
+  let cleanedArt = cleanArtist(artist);
+  const lowerArtist = cleanedArt.toLowerCase();
+
+  const isPublisherOrGeneric =
+    !cleanedArt ||
+    RECORD_LABELS.has(lowerArtist) ||
+    Array.from(RECORD_LABELS).some(
+      (label) => lowerArtist.endsWith(` ${label}`) || lowerArtist.endsWith(`-${label}`)
+    );
+
+  if (
+    isPublisherOrGeneric &&
+    (title.includes(' - ') || title.includes(' – ') || title.includes(' — '))
+  ) {
     const parts = title.split(/\s*[-–—]\s*/);
     if (parts.length >= 2) {
       artist = parts[0];
       title = parts.slice(1).join(' - ');
+      cleanedArt = cleanArtist(artist);
     }
   }
 
+  let cleanedTit = cleanTitle(title);
+  if (cleanedArt && cleanedTit.toLowerCase().startsWith(`${cleanedArt.toLowerCase()} - `)) {
+    cleanedTit = cleanedTit.substring(cleanedArt.length + 3).trim();
+  }
+
   return {
-    title: cleanTitle(title),
-    artist: cleanArtist(artist),
+    title: cleanedTit,
+    artist: cleanedArt,
   };
 }
 
@@ -111,6 +112,42 @@ async function fetchLastFmSimilar(
 }
 
 /**
+ * Fetches similar genre/style artists from Last.fm artist.getsimilar API.
+ * E.g., Dolu Kadehi Ters Tut -> Yüzyüzeyken Konuşuruz, Adamlar, Madrigal, Pinhani, Mavi Gri
+ */
+export async function fetchLastFmSimilarArtists(
+  artist: string,
+  limit: number,
+  apiKey: string
+): Promise<string[]> {
+  try {
+    const url = `https://ws.audioscrobbler.com/2.0/?method=artist.getsimilar&artist=${encodeURIComponent(
+      artist
+    )}&limit=${limit}&autocorrect=1&api_key=${apiKey}&format=json`;
+
+    const res = await fetch(url, {
+      signal: AbortSignal.timeout(4000),
+    });
+
+    if (!res.ok) return [];
+
+    const data = await res.json();
+    if (data.error) return [];
+
+    const rawArtists = data.similarartists?.artist;
+    if (!rawArtists) return [];
+
+    const artistsArray = Array.isArray(rawArtists) ? rawArtists : [rawArtists];
+    return artistsArray
+      .map((a: { name?: string }) => a.name)
+      .filter((name): name is string => Boolean(name && name.trim()));
+  } catch (err) {
+    console.warn('Last.fm artist.getsimilar error:', err);
+    return [];
+  }
+}
+
+/**
  * Fetches the top tags (genre/mood) for a track from Last.fm.
  */
 async function fetchLastFmTrackTags(
@@ -138,15 +175,31 @@ async function fetchLastFmTrackTags(
     }
 
     const rawTags: LastFmTag[] = data.toptags?.tag || [];
-    // Filter out generic/useless tags and return top 3
     const ignoreTags = new Set([
-      'seen live', 'favorites', 'favourite', 'favorite', 'my favorite',
-      'love', 'loved', 'awesome', 'good', 'best', 'check out',
-      'spotify', 'youtube', 'all', 'albums i own',
+      'seen live',
+      'favorites',
+      'favourite',
+      'favorite',
+      'my favorite',
+      'love',
+      'loved',
+      'awesome',
+      'good',
+      'best',
+      'check out',
+      'spotify',
+      'youtube',
+      'all',
+      'albums i own',
     ]);
 
     return rawTags
-      .filter((t) => t.name && !ignoreTags.has(t.name.toLowerCase()) && (t.count === undefined || t.count > 10))
+      .filter(
+        (t) =>
+          t.name &&
+          !ignoreTags.has(t.name.toLowerCase()) &&
+          (t.count === undefined || t.count > 10)
+      )
       .slice(0, 3)
       .map((t) => t.name as string);
   } catch (err) {
@@ -202,11 +255,12 @@ async function fetchLastFmTagTopTracks(
       const trackName = t.name;
       const artistName = t.artist?.name;
       if (trackName && artistName) {
-        // Skip the seed song itself AND skip same-artist songs to ensure variety
-        if (trackName.toLowerCase() === lowerSeedTitle && artistName.toLowerCase() === lowerSeedArtist) {
+        if (
+          trackName.toLowerCase() === lowerSeedTitle &&
+          artistName.toLowerCase() === lowerSeedArtist
+        ) {
           continue;
         }
-        // Prefer songs from DIFFERENT artists for genre diversity
         if (artistName.toLowerCase() === lowerSeedArtist) {
           continue;
         }
@@ -222,23 +276,93 @@ async function fetchLastFmTagTopTracks(
 }
 
 /**
- * Direct YouTube search fallback when Last.fm returns no candidates or key is missing.
+ * Checks if a candidate song matches the seed song (seedTitle and seedArtist).
+ * Used to filter out duplicate uploads/versions of the currently playing song.
  */
-async function fetchYouTubeFallback(title: string, artist: string, limit: number): Promise<Song[]> {
+export function isSeedSong(song: Song, seedTitle: string, seedArtist: string): boolean {
+  if (!seedTitle && !seedArtist) return false;
+
+  const sTitle = cleanTitle(song.title || '').toLowerCase();
+  const sArtist = cleanArtist(song.artist || '').toLowerCase();
+  const cSeedTitle = cleanTitle(seedTitle || '').toLowerCase();
+  const cSeedArtist = cleanArtist(seedArtist || '').toLowerCase();
+
+  if (cSeedTitle && cSeedArtist) {
+    const titleMatch =
+      sTitle === cSeedTitle ||
+      (cSeedTitle.length > 2 && sTitle.includes(cSeedTitle)) ||
+      (sTitle.length > 2 && cSeedTitle.includes(sTitle));
+
+    const artistMatch =
+      sArtist === cSeedArtist ||
+      (cSeedArtist.length > 2 && sArtist.includes(cSeedArtist)) ||
+      (cSeedArtist.length > 2 && sArtist.includes(cSeedArtist)) ||
+      (cSeedArtist.length > 2 && sTitle.includes(cSeedArtist));
+
+    if (titleMatch && artistMatch) {
+      return true;
+    }
+
+    // Inverted check (e.g. YouTube video titled "Title - Artist")
+    const invertedTitleMatch =
+      sTitle === cSeedArtist ||
+      (cSeedArtist.length > 2 && sTitle.includes(cSeedArtist)) ||
+      (sTitle.length > 2 && cSeedArtist.includes(sTitle));
+
+    const invertedArtistMatch =
+      sArtist === cSeedTitle ||
+      (cSeedTitle.length > 2 && sArtist.includes(cSeedTitle)) ||
+      (sArtist.length > 2 && cSeedTitle.includes(sArtist));
+
+    if (invertedTitleMatch && invertedArtistMatch) {
+      return true;
+    }
+  } else if (cSeedTitle) {
+    if (sTitle === cSeedTitle || (cSeedTitle.length > 3 && sTitle.includes(cSeedTitle))) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+/**
+ * Direct YouTube search fallback for single tracks when Last.fm returns no candidates or key is missing.
+ * Searches for single tracks (e.g. "${artist} ${title} benzeri şarkılar" or "${artist} tarzı şarkılar")
+ * instead of playlists or mix videos.
+ */
+async function fetchYouTubeFallback(
+  title: string,
+  artist: string,
+  limit: number
+): Promise<Song[]> {
   let searchQuery = '';
   if (artist && title) {
-    searchQuery = `${artist} ${title} mix`;
+    searchQuery = `${artist} ${title} benzeri şarkılar`;
   } else if (artist) {
-    searchQuery = `${artist} top songs`;
+    searchQuery = `${artist} tarzı şarkılar`;
   } else if (title) {
-    searchQuery = `${title} mix`;
+    searchQuery = `${title} benzeri şarkılar`;
   } else {
-    searchQuery = 'Türkçe Pop En Çok Dinlenenler 2026';
+    searchQuery = 'Dolu Kadehi Ters Tut Dilerim Ki benzeri şarkılar';
   }
 
   try {
-    const ytResults = await searchYouTube(searchQuery, limit);
-    return ytResults.map((yt) => youtubeSearchResultToSong(yt));
+    const ytResults = await searchYouTube(searchQuery, limit * 3);
+    const valid = ytResults.filter(isSingleTrack);
+    const songs = valid.map((yt) => youtubeSearchResultToSong(yt));
+
+    const filtered: Song[] = [];
+    const seenYoutubeIds = new Set<string>();
+
+    for (const song of songs) {
+      if (!song.youtube_id || seenYoutubeIds.has(song.youtube_id)) continue;
+      if (isSeedSong(song, title, artist)) continue;
+      seenYoutubeIds.add(song.youtube_id);
+      filtered.push(song);
+    }
+
+    return filtered;
   } catch (err) {
     console.error('YouTube fallback search failed:', err);
     return [];
@@ -270,76 +394,85 @@ export async function GET(request: Request) {
     const { title, artist } = sanitizeInputs(rawTitle, rawArtist);
     const apiKey = process.env.LASTFM_API_KEY;
 
-    let candidates: LastFmTrackCandidate[] = [];
+    const candidates: LastFmTrackCandidate[] = [];
 
     if (apiKey && (title || artist)) {
       // 1. Primary: track.getSimilar (music-DNA based similarity)
       if (title && artist) {
-        candidates = await fetchLastFmSimilar(title, artist, limit, apiKey);
+        const trackSimilar = await fetchLastFmSimilar(title, artist, limit, apiKey);
+        candidates.push(...trackSimilar);
       }
 
-      // 2. Fallback: genre/tag-based discovery (different artists, same genre)
-      if (candidates.length < 3 && title && artist) {
+      // 2. Artist-level genre/style similarity: artist.getsimilar
+      if (artist) {
+        const similarArtists = await fetchLastFmSimilarArtists(artist, limit, apiKey);
+        for (const simArtist of similarArtists) {
+          if (simArtist.toLowerCase() !== artist.toLowerCase()) {
+            candidates.push({ title: '', artist: simArtist });
+          }
+        }
+      }
+
+      // 3. Supplement: tag-based discovery (different artists, same genre)
+      if (candidates.length < 5 && title && artist) {
         const tags = await fetchLastFmTrackTags(title, artist, apiKey);
         if (tags.length > 0) {
-          // Fetch from multiple genre tags and merge for diversity
           const tagPromises = tags.map((tag) =>
             fetchLastFmTagTopTracks(tag, title, artist, limit, apiKey)
           );
           const tagResults = await Promise.all(tagPromises);
-          
-          // Interleave results from different tags for variety
-          const seenKeys = new Set(candidates.map((c) => `${c.title.toLowerCase()}|${c.artist.toLowerCase()}`));
           for (const tagCandidates of tagResults) {
-            for (const c of tagCandidates) {
-              const key = `${c.title.toLowerCase()}|${c.artist.toLowerCase()}`;
-              if (!seenKeys.has(key)) {
-                seenKeys.add(key);
-                candidates.push(c);
-              }
-            }
+            candidates.push(...tagCandidates);
           }
         }
       }
     }
 
     if (candidates.length === 0) {
-      // YouTube fallback: search for genre-based content, not same artist
-      const genreQuery = artist 
-        ? `${artist} genre similar artists music`
-        : `${title} similar songs`;
       const fallbackSongs = await fetchYouTubeFallback(title, artist, limit);
-      // If YouTube fallback also gets same-artist results, try a genre search
-      if (fallbackSongs.length === 0) {
-        const ytResults = await searchYouTube(genreQuery, limit);
-        const genreSongs = ytResults.map((yt) => youtubeSearchResultToSong(yt));
-        return NextResponse.json({ recommendations: genreSongs });
-      }
-      return NextResponse.json({ recommendations: fallbackSongs });
+      return NextResponse.json({ recommendations: fallbackSongs.slice(0, limit) });
     }
 
-    // Filter out candidates identical to input track
+    // Filter out candidates matching seed title & artist
     const cleanSeedTitle = title.toLowerCase();
     const cleanSeedArtist = artist.toLowerCase();
 
-    const filteredCandidates = candidates
-      .filter(
-        (c) =>
-          !(
-            c.title.toLowerCase() === cleanSeedTitle &&
-            c.artist.toLowerCase() === cleanSeedArtist
-          )
-      )
-      .slice(0, limit + 5);
+    const seenCandidates = new Set<string>();
+    const filteredCandidates: LastFmTrackCandidate[] = [];
 
-    // Resolve candidates to YouTube video streams in parallel
-    const resolutionPromises = filteredCandidates.map(async (candidate): Promise<Song | null> => {
-      const searchQuery = `${candidate.artist} - ${candidate.title}`;
-      const ytResults = await searchYouTube(searchQuery, 1);
-      if (!ytResults || ytResults.length === 0) return null;
+    for (const c of candidates) {
+      const cTitle = (c.title || '').toLowerCase();
+      const cArtist = (c.artist || '').toLowerCase();
 
-      return youtubeSearchResultToSong(ytResults[0], candidate.artist);
-    });
+      if (cTitle && cArtist && cTitle === cleanSeedTitle && cArtist === cleanSeedArtist) {
+        continue;
+      }
+      if (cArtist === cleanSeedArtist && !cTitle) {
+        continue;
+      }
+
+      const key = `${cTitle}|${cArtist}`;
+      if (!seenCandidates.has(key)) {
+        seenCandidates.add(key);
+        filteredCandidates.push(c);
+      }
+    }
+
+    // Resolve candidates to YouTube single tracks
+    const resolutionPromises = filteredCandidates
+      .slice(0, limit * 2)
+      .map(async (candidate): Promise<Song | null> => {
+        const searchQuery = candidate.title
+          ? `${candidate.artist} - ${candidate.title}`
+          : candidate.artist;
+        const ytResults = await searchYouTube(searchQuery, 3);
+        if (!ytResults || ytResults.length === 0) return null;
+
+        const validResult = ytResults.find(isSingleTrack);
+        if (!validResult) return null;
+
+        return youtubeSearchResultToSong(validResult, candidate.artist || undefined);
+      });
 
     const settled = await Promise.allSettled(resolutionPromises);
 
@@ -350,26 +483,30 @@ export async function GET(request: Request) {
       if (result.status === 'fulfilled' && result.value !== null) {
         const song = result.value;
         if (song.youtube_id && !seenYoutubeIds.has(song.youtube_id)) {
-          seenYoutubeIds.add(song.youtube_id);
-          recommendations.push(song);
+          if (!isSeedSong(song, title, artist)) {
+            seenYoutubeIds.add(song.youtube_id);
+            recommendations.push(song);
+          }
         }
       }
       if (recommendations.length >= limit) break;
     }
 
-    // If candidate resolution yielded too few results, top up with fallback
+    // Top up with YouTube fallback if candidate resolution yields too few recommendations
     if (recommendations.length < Math.min(limit, 3)) {
       const fallbackSongs = await fetchYouTubeFallback(title, artist, limit);
       for (const song of fallbackSongs) {
         if (song.youtube_id && !seenYoutubeIds.has(song.youtube_id)) {
-          seenYoutubeIds.add(song.youtube_id);
-          recommendations.push(song);
+          if (!isSeedSong(song, title, artist)) {
+            seenYoutubeIds.add(song.youtube_id);
+            recommendations.push(song);
+          }
         }
         if (recommendations.length >= limit) break;
       }
     }
 
-    return NextResponse.json({ recommendations });
+    return NextResponse.json({ recommendations: recommendations.slice(0, limit) });
   } catch (error) {
     console.error('Recommendations API error:', error);
     return NextResponse.json(

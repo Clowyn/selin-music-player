@@ -24,7 +24,7 @@ export default function UpNextRow() {
         } else if (currentSong?.title) {
           url += `&title=${encodeURIComponent(currentSong.title)}`;
         } else {
-          url += `&title=${encodeURIComponent('Türkçe Pop')}&artist=${encodeURIComponent('2026')}`;
+          url += `&title=${encodeURIComponent('Dilerim Ki')}&artist=${encodeURIComponent('Dolu Kadehi Ters Tut')}`;
         }
 
         const res = await fetch(url, { signal: controller.signal });

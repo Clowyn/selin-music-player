@@ -51,17 +51,17 @@ export default function Home() {
           <CustomSeekbar />
         </div>
 
-        {/* Player controls */}
-        <div className="px-6 mb-3">
+        {/* Player controls with secondary action buttons */}
+        <div className="px-6 mb-6">
           <PlayerControls />
         </div>
-
-        {/* Drawer triggers area */}
-        <div className="px-6 mb-6 flex items-center justify-center gap-4">
-          <PlaylistDrawer />
-          <SearchDrawer />
-        </div>
       </div>
+
+      {/* Playlist Drawer */}
+      <PlaylistDrawer />
+
+      {/* Search Drawer */}
+      <SearchDrawer />
 
       {/* Slide-up Queue Drawer */}
       <QueueDrawer />
